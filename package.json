@@ -1,0 +1,22 @@
+{
+  "name": "iot-core",
+  "version": "0.0.1",
+  "description": "IOT-Hub core library",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "mqtt": "^5.13.0",
+    "zod": "^3.25.23"
+  },
+  "author": "",
+  "license": "ISC"
+}
