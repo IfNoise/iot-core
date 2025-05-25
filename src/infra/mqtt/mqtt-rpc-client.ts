@@ -118,7 +118,7 @@ export class MqttRpcClient {
       qos: this.options.qos ?? 1,
     };
 
-    this.client.publish(topic, payload, publishOptions, (err: Error) => {
+    this.client.publish(topic, payload, publishOptions, (err) => {
       if (err) {
         this.error("[MQTT] Failed to publish:", err.message);
       }
@@ -151,7 +151,7 @@ export class MqttRpcClient {
       qos: this.options.qos ?? 1,
     };
 
-    this.client.subscribe(topic, subscribeOptions, (err: Error) => {
+    this.client.subscribe(topic, subscribeOptions, (err: Error | null) => {
       if (err) {
         this.error("[MQTT] Subscribe error:", err.message);
       } else {
