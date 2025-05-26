@@ -62,7 +62,7 @@ export const DeviceInternalStateSchema = z
  */
 export const DeviceSchema = z
   .object({
-    id: z.string().describe("Уникальный ID устройства"),
+    deviceId: z.string().describe("Уникальный ID устройства"),
     userId: z.string().describe("ID владельца устройства"),
     name: z.string().describe("Название устройства"),
     type: DeviceTypeEnum.describe("Тип устройства"),
@@ -81,7 +81,7 @@ export const DeviceSchema = z
  * DTO: Create
  */
 export const CreateDeviceSchema = DeviceSchema.omit({
-  id: true,
+  deviceId: true,
   status: true,
   lastSeenAt: true,
   internalState: true,
@@ -91,6 +91,6 @@ export const CreateDeviceSchema = DeviceSchema.omit({
  * DTO: Update
  */
 export const UpdateDeviceSchema = DeviceSchema.partial().omit({
-  id: true,
+  deviceId: true,
   userId: true,
 });

@@ -1,6 +1,14 @@
 // packages/mqtt-core/src/rpc-methods.ts
 
 import { z } from "zod";
+import {
+  UpdateAnalogRegulatorSchema,
+  UpdateAnalogTimerSchema,
+  UpdateDeviceSchema,
+  UpdateDiscreteRegulatorSchema,
+  UpdateDiscreteTimerSchema,
+  UpdateIrrigatorSchema,
+} from "./devices";
 
 /**
  * Схемы для RPC методов
@@ -12,8 +20,14 @@ export const rpcSchemas = {
   turnOnLed: z.object({
     on: z.boolean(),
   }),
+  reboot: z.void(),
+  getSensors: z.void(),
+  getDeviceState: z.void(),
+  updateDevice: UpdateDeviceSchema,
 
-  setThreshold: z.object({
-    threshold: z.number().min(0).max(100),
-  }),
+  updateDiscreteTimer: UpdateDiscreteTimerSchema,
+  updateAnalogTimer: UpdateAnalogTimerSchema,
+  updateDiscreteRegulator: UpdateDiscreteRegulatorSchema,
+  updateAnalogRegulator: UpdateAnalogRegulatorSchema,
+  updateIrrigator: UpdateIrrigatorSchema,
 } as const;

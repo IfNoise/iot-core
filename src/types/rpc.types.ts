@@ -3,19 +3,25 @@
 import { rpcSchemas } from "../schemas/rpc-methods.schemas";
 
 export interface RpcRequest {
-  id: string;
+  id: string; // Уникальный идентификатор запроса
   method: string;
   params?: Record<string, any>;
   deviceId: string;
 }
 
+export type MqttRpcRequest = {
+  topic: string; // Топик для отправки запроса
+  message: RpcRequest; // Сообщение запроса
+};
+
 export interface RpcResponse {
-  id: string;
+  id: string; // Уникальный идентификатор запроса, к которому относится ответ
   result?: any;
   error?: {
     code: number;
     message: string;
   };
+  deviceId: string;
 }
 
 /**
@@ -30,3 +36,8 @@ export interface RpcResponse {
  * ```
  */
 export type RpcMethod = keyof typeof rpcSchemas;
+export type RpcMethodParams = (typeof rpcSchemas)[RpcMethod] extends {
+  parse: (data: any) => infer R;
+}
+  ? R
+  : never;

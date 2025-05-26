@@ -1,11 +1,20 @@
 import mqtt from "mqtt";
-import type { RpcRequest, RpcResponse } from "../../types/rpc.types";
-import { getRequestTopic, getResponseTopic } from "../../utils/rpc.utils";
+import type {
+  MqttRpcRequest,
+  RpcMethod,
+  RpcMethodParams,
+  RpcRequest,
+  RpcResponse,
+} from "../../types/rpc.types";
+import {
+  createValidatedRpcRequest,
+  getResponseTopic,
+} from "../../utils/rpc.utils";
 
 type Logger = {
-  log: (...args: any[]) => void;
-  warn: (...args: any[]) => void;
-  error: (...args: any[]) => void;
+  log: (...args: any[]) => any;
+  warn: (...args: any[]) => any;
+  error: (...args: any[]) => any;
 };
 
 type MqttClient = ReturnType<typeof mqtt.connect>;
@@ -93,7 +102,7 @@ export class MqttRpcClient {
     this.client.on("message", (topic: string, message: Buffer) => {
       try {
         const parsed = JSON.parse(message.toString()) as RpcResponse;
-        const cb = this.responseListeners.get(parsed.id);
+        const cb = this.responseListeners.get(parsed.deviceId);
         if (cb) cb(parsed);
       } catch (e) {
         this.error("[MQTT] Invalid RPC response:", e);
@@ -105,9 +114,19 @@ export class MqttRpcClient {
     this.client.on("connect", callback);
   }
 
-  sendCommand(command: RpcRequest): void {
-    const topic = getRequestTopic(this.options.userId, command.deviceId);
-    const payload = JSON.stringify(command);
+  sendCommand(
+    userId: string,
+    deviceId: string,
+    command: RpcMethod,
+    params: RpcMethodParams
+  ): void {
+    const request: MqttRpcRequest = createValidatedRpcRequest(
+      userId,
+      deviceId,
+      command,
+      params
+    );
+    const payload = JSON.stringify(request.message);
 
     if (!this.client.connected) {
       this.warn("[MQTT] Not connected, cannot send command.");
@@ -118,7 +137,7 @@ export class MqttRpcClient {
       qos: this.options.qos ?? 1,
     };
 
-    this.client.publish(topic, payload, publishOptions, (err) => {
+    this.client.publish(request.topic, payload, publishOptions, (err) => {
       if (err) {
         this.error("[MQTT] Failed to publish:", err.message);
       }
@@ -126,22 +145,45 @@ export class MqttRpcClient {
   }
 
   async sendCommandAsync(
-    command: RpcRequest,
+    userId: string,
+    deviceId: string,
+    command: RpcMethod,
+    params: RpcMethodParams,
     timeout = 5000
   ): Promise<RpcResponse> {
+    const response = createValidatedRpcRequest(
+      userId,
+      deviceId,
+      command,
+      params
+    );
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
-        this.responseListeners.delete(command.id);
+        this.responseListeners.delete(response.message.id);
+        this.warn("[MQTT] RPC timeout for command:", command);
         reject(new Error("RPC timeout"));
       }, timeout);
 
-      this.responseListeners.set(command.id, (resp) => {
+      this.responseListeners.set(response.message.id, (resp) => {
         clearTimeout(timer);
-        this.responseListeners.delete(command.id);
+        this.responseListeners.delete(response.message.id);
         resolve(resp);
       });
 
-      this.sendCommand(command);
+      this.client.publish(
+        response.topic,
+        JSON.stringify(response.message),
+        { qos: this.options.qos ?? 1 },
+        (err) => {
+          if (err) {
+            this.error("[MQTT] Failed to publish command:", err.message);
+            this.responseListeners.delete(response.message.id);
+            reject(err);
+          } else {
+            this.log("[MQTT] Command sent:", command, params);
+          }
+        }
+      );
     });
   }
 

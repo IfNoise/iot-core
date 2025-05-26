@@ -103,7 +103,7 @@ describe("MqttRpcClient", () => {
     const topic = `users/${mockOptions.userId}/devices/${command.deviceId}/command`;
     (getRequestTopic as jest.Mock).mockReturnValue(topic);
 
-    client.sendCommand(command);
+    client.sendCommand("123", "test", "getDeviceState", {});
 
     expect(mockClient.publish).toHaveBeenCalledWith(
       topic,
@@ -124,7 +124,7 @@ describe("MqttRpcClient", () => {
       deviceId: mockOptions.deviceId,
     };
 
-    client.sendCommand(command);
+    client.sendCommand("123", "test", "getDeviceState", {});
 
     expect(mockClient.publish).not.toHaveBeenCalled();
   });
@@ -146,14 +146,19 @@ describe("MqttRpcClient", () => {
       params: {},
       deviceId: mockOptions.deviceId,
     };
-
     const response: RpcResponse = {
       id: "123",
-      result: "success",
-      error: undefined,
+      result: { state: "ok" },
+      deviceId: mockOptions.deviceId,
     };
 
-    const promise = client.sendCommandAsync(command);
+    const promise = client.sendCommandAsync(
+      "123",
+      "test",
+      "getDeviceState",
+      {},
+      500
+    );
     if (messageHandler) {
       messageHandler("response/topic", Buffer.from(JSON.stringify(response)));
     }
@@ -171,7 +176,14 @@ describe("MqttRpcClient", () => {
       deviceId: mockOptions.deviceId,
     };
 
-    const promise = client.sendCommandAsync(command, 1000);
+    const promise = client.sendCommandAsync(
+      "123",
+      "test",
+      "getDeviceState",
+      {},
+      1000
+    );
+    jest.advanceTimersByTime(1000);
     jest.advanceTimersByTime(1001);
 
     await expect(promise).rejects.toThrow("RPC timeout");
@@ -244,7 +256,13 @@ describe("MqttRpcClient", () => {
       deviceId: mockOptions.deviceId,
     };
 
-    const promise = client.sendCommandAsync(command, 500);
+    const promise = client.sendCommandAsync(
+      "123",
+      "test",
+      "getDeviceState",
+      {},
+      500
+    );
 
     if (messageHandler) {
       messageHandler(
@@ -268,21 +286,20 @@ describe("MqttRpcClient", () => {
 
     const client = new MqttRpcClient(mockOptions);
 
-    const cmd1: RpcRequest = {
-      id: "1",
-      method: "a",
-      params: {},
-      deviceId: mockOptions.deviceId,
-    };
-    const cmd2: RpcRequest = {
-      id: "2",
-      method: "b",
-      params: {},
-      deviceId: mockOptions.deviceId,
-    };
-
-    const promise1 = client.sendCommandAsync(cmd1);
-    const promise2 = client.sendCommandAsync(cmd2);
+    const promise1 = client.sendCommandAsync(
+      "123",
+      "test",
+      "getDeviceState",
+      {},
+      500
+    );
+    const promise2 = client.sendCommandAsync(
+      "123",
+      "test",
+      "getDeviceState",
+      {},
+      500
+    );
 
     messageHandler?.(
       "topic",
@@ -317,6 +334,8 @@ describe("MqttRpcClient", () => {
       return mockClient;
     });
 
-    expect(() => client.sendCommand(command)).not.toThrow();
+    expect(() =>
+      client.sendCommand("123", "test", "getDeviceState", {})
+    ).not.toThrow();
   });
 });

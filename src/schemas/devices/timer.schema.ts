@@ -32,7 +32,7 @@ export const DiscreteTimerSchema = z
 /**
  * DTO: Обновление дискретного таймера
  */
-export const UpdateDiscreteTTimerSchema = DiscreteTimerSchema.partial()
+export const UpdateDiscreteTimerSchema = DiscreteTimerSchema.partial()
   .extend({
     id: z.string().describe("Уникальный ID таймера"),
   })

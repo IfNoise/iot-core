@@ -1,5 +1,5 @@
 import { rpcSchemas } from "../schemas/rpc-methods.schemas";
-import { RpcRequest } from "../types/rpc.types";
+import { MqttRpcRequest, RpcRequest } from "../types/rpc.types";
 
 export const getRequestTopic = (userId: string, deviceId: string): string =>
   `users/${userId}/devices/${deviceId}/rpc/request`;
@@ -24,7 +24,7 @@ export function createValidatedRpcRequest(
   deviceId: string,
   method: string,
   params?: any
-): { topic: string; message: RpcRequest } {
+): MqttRpcRequest {
   validateRpc(method, params);
 
   return {
@@ -35,5 +35,21 @@ export function createValidatedRpcRequest(
       method,
       params,
     },
+  };
+}
+
+// Wrapper for creating WS RPC requests with validation
+export function createValidatedWsRpcRequest(
+  deviceId: string,
+  method: string,
+  params?: any
+): RpcRequest {
+  validateRpc(method, params);
+
+  return {
+    id: crypto.randomUUID(),
+    deviceId,
+    method,
+    params,
   };
 }

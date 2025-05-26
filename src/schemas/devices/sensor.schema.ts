@@ -23,5 +23,6 @@ export const SensorSchema = z
 export const SensorUpdateSchema = SensorSchema.partial()
   .omit({
     id: true,
+    value: true,
   })
   .strict();
