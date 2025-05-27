@@ -11,9 +11,15 @@ import {
   getResponseTopic,
 } from "../../utils/rpc.utils";
 
+/**
+ * Интерфейс логгера для вывода сообщений
+ */
 type Logger = {
+  /** Логирование обычных сообщений */
   log: (...args: any[]) => any;
+  /** Логирование предупреждений */
   warn: (...args: any[]) => any;
+  /** Логирование ошибок */
   error: (...args: any[]) => any;
 };
 
@@ -22,17 +28,50 @@ type MqttOptions = Parameters<typeof mqtt.connect>[1];
 type IClientPublishOptions = Parameters<MqttClient["publish"]>[2];
 type IClientSubscribeOptions = Parameters<MqttClient["subscribe"]>[1];
 
+/**
+ * Опции для создания MQTT RPC клиента
+ */
 type MqttRpcClientOptions = {
+  /** URL MQTT брокера */
   brokerUrl: string;
+  /** Идентификатор пользователя */
   userId: string;
+  /** Идентификатор устройства */
   deviceId: string;
+  /** JWT токен для аутентификации */
   token?: string;
+  /** Имя пользователя для подключения (по умолчанию 'jwt') */
   username?: string;
+  /** Уровень качества доставки сообщений (0, 1, 2) */
   qos?: 0 | 1 | 2;
+  /** Полезная нагрузка для Last Will сообщения */
   willPayload?: string;
+  /** Объект для логирования событий */
   logger?: Logger;
 };
 
+/**
+ * MQTT RPC клиент для отправки команд устройствам и получения ответов
+ *
+ * @example
+ * ```typescript
+ * const client = new MqttRpcClient({
+ *   brokerUrl: 'mqtt://localhost:1883',
+ *   userId: 'user123',
+ *   deviceId: 'device456',
+ *   token: 'jwt-token',
+ *   qos: 1,
+ *   logger: console
+ * });
+ *
+ * client.onConnect(() => {
+ *   console.log('Connected');
+ *   client.onResponseTopic();
+ * });
+ *
+ * const response = await client.sendCommandAsync('user1', 'dev1', 'getDeviceState', {});
+ * ```
+ */
 export class MqttRpcClient {
   private client: MqttClient;
   private options: MqttRpcClientOptions;
@@ -40,6 +79,10 @@ export class MqttRpcClient {
     new Map();
   private cleanupInterval: NodeJS.Timeout;
 
+  /**
+   * Создает новый экземпляр MQTT RPC клиента
+   * @param options - Опции конфигурации клиента
+   */
   constructor(options: MqttRpcClientOptions) {
     this.options = options;
 
@@ -68,18 +111,33 @@ export class MqttRpcClient {
     );
   }
 
+  /**
+   * Логирует обычные сообщения
+   * @param args - Аргументы для логирования
+   */
   private log(...args: any[]) {
     this.options.logger?.log?.(...args);
   }
 
+  /**
+   * Логирует предупреждения
+   * @param args - Аргументы для логирования
+   */
   private warn(...args: any[]) {
     this.options.logger?.warn?.(...args);
   }
 
+  /**
+   * Логирует ошибки
+   * @param args - Аргументы для логирования
+   */
   private error(...args: any[]) {
     this.options.logger?.error?.(...args);
   }
 
+  /**
+   * Подключает обработчики событий MQTT клиента
+   */
   private attachDefaultListeners() {
     this.client.on("connect", () => {
       this.log("[MQTT] Connected");
@@ -98,6 +156,9 @@ export class MqttRpcClient {
     });
   }
 
+  /**
+   * Подключает обработчик входящих сообщений
+   */
   private attachMessageHandler() {
     this.client.on("message", (topic: string, message: Buffer) => {
       try {
@@ -110,20 +171,56 @@ export class MqttRpcClient {
     });
   }
 
-  onConnect(callback: () => void) {
+  /**
+   * Очищает устаревшие слушатели ответов
+   */
+  private cleanupStaleListeners(): void {
+    // Расширяемая логика очистки старых callback'ов (например, через Map<string, { timestamp, cb }>)
+  }
+
+  /**
+   * Устанавливает обработчик события подключения
+   * @param callback - Функция, вызываемая при подключении
+   */
+  onConnect(callback: () => void): void {
     this.client.on("connect", callback);
   }
 
+  /**
+   * Подписывается на топик ответов устройства
+   */
+  onResponseTopic(): void {
+    const topic = getResponseTopic(this.options.userId, this.options.deviceId);
+    const subscribeOptions: IClientSubscribeOptions = {
+      qos: this.options.qos ?? 1,
+    };
+
+    this.client.subscribe(topic, subscribeOptions, (err: Error | null) => {
+      if (err) {
+        this.error("[MQTT] Subscribe error:", err.message);
+      } else {
+        this.log(`[MQTT] Subscribed to response topic: ${topic}`);
+      }
+    });
+  }
+
+  /**
+   * Отправляет команду устройству без ожидания ответа
+   * @param userId - Идентификатор пользователя
+   * @param deviceId - Идентификатор устройства
+   * @param method - Метод RPC
+   * @param params - Параметры метода
+   */
   sendCommand(
     userId: string,
     deviceId: string,
-    command: RpcMethod,
-    params: RpcMethodParams
+    method: RpcMethod,
+    params?: RpcMethodParams
   ): void {
     const request: MqttRpcRequest = createValidatedRpcRequest(
       userId,
       deviceId,
-      command,
+      method,
       params
     );
     const payload = JSON.stringify(request.message);
@@ -144,23 +241,33 @@ export class MqttRpcClient {
     });
   }
 
+  /**
+   * Отправляет команду устройству и ожидает ответ
+   * @param userId - Идентификатор пользователя
+   * @param deviceId - Идентификатор устройства
+   * @param method - Метод RPC
+   * @param params - Параметры метода
+   * @param timeout - Таймаут ожидания ответа в миллисекундах (по умолчанию 5000)
+   * @returns Promise с ответом устройства
+   * @throws Error при таймауте или ошибке отправки
+   */
   async sendCommandAsync(
     userId: string,
     deviceId: string,
-    command: RpcMethod,
-    params: RpcMethodParams,
+    method: RpcMethod,
+    params?: RpcMethodParams,
     timeout = 5000
   ): Promise<RpcResponse> {
     const response = createValidatedRpcRequest(
       userId,
       deviceId,
-      command,
+      method,
       params
     );
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.responseListeners.delete(response.message.id);
-        this.warn("[MQTT] RPC timeout for command:", command);
+        this.warn("[MQTT] RPC timeout for command:", method);
         reject(new Error("RPC timeout"));
       }, timeout);
 
@@ -180,36 +287,25 @@ export class MqttRpcClient {
             this.responseListeners.delete(response.message.id);
             reject(err);
           } else {
-            this.log("[MQTT] Command sent:", command, params);
+            this.log("[MQTT] Command sent:", method, params);
           }
         }
       );
     });
   }
 
-  onResponseTopic(): void {
-    const topic = getResponseTopic(this.options.userId, this.options.deviceId);
-    const subscribeOptions: IClientSubscribeOptions = {
-      qos: this.options.qos ?? 1,
-    };
-
-    this.client.subscribe(topic, subscribeOptions, (err: Error | null) => {
-      if (err) {
-        this.error("[MQTT] Subscribe error:", err.message);
-      } else {
-        this.log(`[MQTT] Subscribed to response topic: ${topic}`);
-      }
-    });
-  }
-
-  private cleanupStaleListeners(): void {
-    // Расширяемая логика очистки старых callback'ов (например, через Map<string, { timestamp, cb }>)
-  }
-
+  /**
+   * Проверяет статус подключения к MQTT брокеру
+   * @returns true если подключен, false если отключен
+   */
   isConnected(): boolean {
     return this.client.connected;
   }
 
+  /**
+   * Отключается от MQTT брокера
+   * @param force - Принудительное отключение без ожидания
+   */
   disconnect(force = false): void {
     clearInterval(this.cleanupInterval);
     this.client.end(force, {}, () => {
