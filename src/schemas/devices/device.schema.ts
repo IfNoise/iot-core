@@ -63,17 +63,12 @@ export const DeviceInternalStateSchema = z
 export const DeviceSchema = z
   .object({
     deviceId: z.string().describe("Уникальный ID устройства"),
-    userId: z.string().describe("ID владельца устройства"),
     name: z.string().describe("Название устройства"),
-    type: DeviceTypeEnum.describe("Тип устройства"),
     status: DeviceStatusEnum.default("offline").describe("Статус устройства"),
     lastSeenAt: z
       .preprocess((v) => new Date(v as string), z.date())
       .describe("Время последней активности"),
     firmwareVersion: z.string().optional().describe("Версия прошивки"),
-    internalState: DeviceInternalStateSchema.optional().describe(
-      "Внутреннее состояние устройства"
-    ),
   })
   .strict();
 
@@ -84,7 +79,6 @@ export const CreateDeviceSchema = DeviceSchema.omit({
   deviceId: true,
   status: true,
   lastSeenAt: true,
-  internalState: true,
 });
 
 /**
@@ -92,5 +86,4 @@ export const CreateDeviceSchema = DeviceSchema.omit({
  */
 export const UpdateDeviceSchema = DeviceSchema.partial().omit({
   deviceId: true,
-  userId: true,
 });

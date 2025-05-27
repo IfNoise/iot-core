@@ -21,9 +21,9 @@ export const rpcSchemas = {
     on: z.boolean(),
   }),
   reboot: z.void(),
+  checkForUpdate: z.void(),
   getSensors: z.void(),
   getDeviceState: z.void(),
-  updateDevice: UpdateDeviceSchema,
 
   updateDiscreteTimer: UpdateDiscreteTimerSchema,
   updateAnalogTimer: UpdateAnalogTimerSchema,
